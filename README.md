@@ -107,9 +107,9 @@ warp_ts=/path/to/warp_tiltseries
 ### Batch mode — all tilt series in a directory
 
 ```bash
-conda activate warp_tools_visualiser
+conda activate warptools_visualiser
 
-python visualise_tiltseries_qt.py \
+python warptools_visualiser.py \
     --tomostar_dir $warp_fs \
     --stack_dir    $warp_ts \
     --frame_dir    $warp_fs \
@@ -119,7 +119,7 @@ python visualise_tiltseries_qt.py \
 ### Single tilt series
 
 ```bash
-python visualise_tiltseries_qt.py \
+python warptools_visualiser.py \
     --stack     $warp_ts/tiltstack/tomogram01/tomogram01.st \
     --tomostar  $warp_fs/tomogram01.tomostar \
     --frame_dir $warp_fs \

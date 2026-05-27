@@ -33,7 +33,7 @@ reconstruction.
 
 ```bash
 git clone https://github.com/jjenkins01/warptools-visualiser.git
-cd warptools-tilt-visualiser
+cd warptools-visualiser
 ```
 
 ### 2. Create the conda environment
@@ -42,16 +42,16 @@ Using the provided `environment.yml`:
 
 ```bash
 conda env create -f environment.yml
-conda activate warp_tools_visualiser
+conda activate warptools_visualiser
 ```
 
 Or manually:
 
 ```bash
-conda create -n warp_tools_visualiser \
+conda create -n warptools_visualiser \
     python=3.11 pyqt numpy mrcfile matplotlib \
     -c conda-forge -y
-conda activate warp_tools_visualiser
+conda activate warptools_visualiser
 ```
 
 ### 3. Verify the installation
@@ -89,7 +89,7 @@ warp_tiltseries                                  Tilt-series processing dir
 ├── tomogram01.xml                               Tilt-series XML (<UseTilt>)
 └── tiltstack/
     └── tomogram01/
-        └── tomogram01.st                       Tilt series stack
+        └── tomogram01.st                        Tilt series stack
 ```
 
 Setting shell variables beforehand can help to speed up commands but not essential:
@@ -146,21 +146,21 @@ python visualise_tiltseries_qt.py \
 ## Interface
 
 ```
-┌──────────────────────────┬─────────────────────────┬──────────────────┐
-│                          │                         │  Tilt Series     │
-│   Tilt Image             │   Power Spectrum        │  ─────────────   │
-│   (+ motion overlay)     │   (2:1 aspect ratio)    │  [*] Position_28 │
-│                          │                         │  [ ] Position_29 │
-│                          │                         │  ...             │
-├──────────────────────────┴─────────────────────────┤                  │
+┌──────────────────────────┬─────────────────────────┬────────────────── ┐
+│                          │                         │  Tilt Series      │
+│   Tilt Image             │   Power Spectrum        │  ─────────────    │
+│   (+ motion overlay)     │   (2:1 aspect ratio)    │  [*] Position_28  │
+│                          │                         │  [ ] Position_29  │
+│                          │                         │  ...              │
+├──────────────────────────┴─────────────────────────┤                   │
 │   Overview bar  (click to jump to tilt)             │                  │
-├─────────────────────────────────────────────────────┴──────────────────┤
-│   CTF: X.X Å  |  Defocus: X.XXX µm  |  Motion: X.XX Å  |  Series: …  │
-│                        Tilt N/61   ±XX.XX°                              │
-├─────────────────────────────────────────────────────────────────────────┤
-│  < Prev  > Next  Exclude [Ctrl+E]  All On  Save  Next Series  Quit+Save │
-│  [✓] Motion Overlay [Ctrl+M]                                            │
-└─────────────────────────────────────────────────────────────────────────┘
+├─────────────────────────────────────────────────────┴───────────────── ┤
+│   CTF: X.X Å  |  Defocus: X.XXX µm  |  Motion: X.XX Å  |  Series: …    │
+│                        Tilt N/61   ±XX.XX°                             │
+├─────────────────────────────────────────────────────────────────────── ┤
+│  < Prev  > Next  Exclude [Ctrl+E]  All On  Save  Next Series  Quit+Save│
+│  [✓] Motion Overlay [Ctrl+M]                                           │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Tilt image panel

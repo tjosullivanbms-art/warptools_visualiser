@@ -1,0 +1,10 @@
+name: warp_tools_visualiser
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pyqt
+  - numpy
+  - mrcfile
+  - matplotlib

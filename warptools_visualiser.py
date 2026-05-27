@@ -26,9 +26,9 @@ Requires
 Usage
 -----
   python visualise_tiltseries_qt.py \\
-      --tomostar_dir $WARP       \\
+      --tomostar_dir $warp_fs       \\
       --stack_dir    $warp_ts    \\
-      --frame_dir    $WARP       \\
+      --frame_dir    $warp_fs       \\
       --xml_dir      $warp_ts
 
 Keyboard shortcuts

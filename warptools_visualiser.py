@@ -184,11 +184,14 @@ def update_xml_usetilt(xml_path, excluded):
             if i < len(excluded) and excluded[i]: updated.append('False')
             elif i < len(existing):              updated.append(existing[i])
             else:                                updated.append('True')
-        node.text = '\n' + '\n'.join(updated) + '\n'
+        # WarpTools format: first value immediately after <UseTilt>, values
+        # separated by newlines, last value immediately before </UseTilt>.
+        # No leading/trailing newline and NO ET.indent() reformatting, both of
+        # which break WarpTools' parser (ts_stack fails with "valid path
+        # needed for each tilt").
+        node.text = '\n'.join(updated)
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
         shutil.copy2(xml_path, xml_path + f'.backup_{ts}')
-        try: ET.indent(tree, space='  ')
-        except AttributeError: pass
         xml_string = ET.tostring(root, encoding='unicode')
         with open(xml_path, 'w', encoding='utf-8') as f:
             f.write('<?xml version="1.0" encoding="utf-8"?>\n')
@@ -204,7 +207,9 @@ def read_usetilt_from_xml(xml_path, n):
     try:
         tree = ET.parse(xml_path)
         node = tree.getroot().find('.//UseTilt')
-        if node and node.text:
+        # NB: an ElementTree element with no children is falsy, so we must
+        # test 'is not None' rather than a plain truthiness check here.
+        if node is not None and node.text:
             vals = [v.strip() for v in node.text.split('\n') if v.strip()]
             for i, v in enumerate(vals[:n]):
                 excluded[i] = v.lower() == 'false'
@@ -818,6 +823,42 @@ class MainWindow(QMainWindow):
 
         root.addLayout(btn_row, stretch=0)
 
+        # ── Bulk exclude-by-colour row ────────────────────────────────
+        # Quickly exclude every tilt of a given overview-bar category with a
+        # single click, instead of stepping through them one at a time.
+        bulk_row = QHBoxLayout()
+        bulk_row.setSpacing(6)
+
+        bulk_lbl = QLabel("Exclude all:")
+        bulk_lbl.setStyleSheet(
+            f"color: {C_TEXT}; font-size: 12px; font-weight: bold; "
+            f"padding: 6px 4px;")
+        bulk_row.addWidget(bulk_lbl)
+
+        # (label, category, button colour)
+        bulk_specs = [
+            ('Purple (CTF > 10 \u00c5)', 'ctf_bad', '#a855f7'),
+            ('Amber (CTF 8\u201310 \u00c5)', 'ctf_mod', C_YELLOW),
+            ('Orange (flagged)',          'flagged', C_ORANGE),
+        ]
+        for label, category, colour in bulk_specs:
+            b = QPushButton(label)
+            b.clicked.connect(
+                lambda _checked, c=category: self._exclude_category(c))
+            b.setStyleSheet(f"""
+                QPushButton {{
+                    background: {colour}; color: #1a1a2e;
+                    border: 1px solid #334155; border-radius: 4px;
+                    padding: 6px 10px; font-size: 12px; font-weight: bold;
+                }}
+                QPushButton:hover   {{ border: 2px solid {C_TEXT}; }}
+                QPushButton:pressed {{ background: {C_ACCENT}; color: {C_TEXT}; }}
+            """)
+            bulk_row.addWidget(b)
+
+        bulk_row.addStretch(1)
+        root.addLayout(bulk_row, stretch=0)
+
     # ── Keyboard shortcuts (keyPressEvent avoids QListWidget focus issue) ──
 
     def keyPressEvent(self, event):
@@ -927,6 +968,38 @@ class MainWindow(QMainWindow):
         self._s()['excluded'] = [False] * self._s()['n']
         self._refresh()
 
+    def _categorise(self, i):
+        """
+        Return the overview-bar category for tilt i of the current series.
+        One of: 'excluded', 'flagged', 'ctf_bad' (>10A), 'ctf_mod' (8-10A),
+        'good'. Matches the colour logic in OverviewCanvas.update_overview.
+        """
+        s = self._s()
+        if s['excluded'][i]:
+            return 'excluded'
+        if s['flagged'][i]:
+            return 'flagged'
+        ctf = s['frame_meta'][i].get('ctf_res') if i < len(s['frame_meta']) else None
+        if ctf:
+            if ctf > 10: return 'ctf_bad'
+            if ctf > 8:  return 'ctf_mod'
+        return 'good'
+
+    def _exclude_category(self, category):
+        """Exclude every tilt currently in the given category."""
+        s = self._s()
+        count = 0
+        for i in range(s['n']):
+            if not s['excluded'][i] and self._categorise(i) == category:
+                s['excluded'][i] = True
+                count += 1
+        if count:
+            _play_exclude_sound()
+        self._refresh()
+        self.statusBar().showMessage(
+            f"Excluded {count} {category.replace('_', ' ')} tilt(s)", 3000)
+        self.setFocus()
+
     # ── Save ───────────────────────────────────────────────────────────────
 
     def _save_current(self):
@@ -934,11 +1007,19 @@ class MainWindow(QMainWindow):
         n_excl = sum(s['excluded'])
         if n_excl == 0:
             print(f"  No exclusions for {s['name']}"); return
-        retained = [r for i, r in enumerate(s['rows'])
-                    if i < s['n'] and not s['excluded'][i]]
-        write_tomostar(s['tomostar_path'], s['col_names'], retained)
+        # Exclusions are recorded ONLY in the tilt-series XML <UseTilt> field,
+        # which is WarpTools' native mechanism. We deliberately do NOT remove
+        # rows from the .tomostar: doing so shortens the file relative to the
+        # 61-entry <UseTilt> list, which (a) breaks alignment when the state is
+        # read back on reopen, and (b) means exclusions are applied twice once
+        # ts_stack regenerates the stack. Keeping the tomostar full-length and
+        # letting <UseTilt> drive exclusion keeps everything consistent and
+        # round-trips correctly.
         if s['ts_xml']:
             update_xml_usetilt(s['ts_xml'], s['excluded'])
+        else:
+            print(f"  [WARN] No tilt-series XML for {s['name']} — "
+                  "cannot save exclusions")
 
     def _on_save(self):
         self._save_current()

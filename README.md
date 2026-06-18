@@ -1,29 +1,19 @@
 # WarpTools Tilt Series Visualiser
 
-An interactive quality control tool for tilt series data processed with
-[WarpTools](https://github.com/warpem/warp). Inspect tilt images, power
-spectra, and motion correction results before proceeding to alignment and
-reconstruction.
+An interactive quality control tool for tilt series data processed with[WarpTools](https://github.com/warpem/warp). Inspect tilt images, power spectra, and motion correction results before proceeding to alignment and reconstruction.
 
-> **This tool was developed with assistance from [Claude](https://claude.ai)
-> (Anthropic) as part of a cryoET subtomogram averaging pipeline.**
+> **This tool was developed with assistance from [Claude](https://claude.ai) (Anthropic) as part of a cryoET subtomogram averaging pipeline.**
 
 ---
 
 ## Features
 
 - **Side-by-side display** of the tilt image and power spectrum
-- **Motion track overlay** drawn spatially on the tilt image — each patch
-  placed at its correct grid position and colour-coded by motion magnitude
-  (green = low, red = high). Toggle on/off with a checkbox or `Ctrl+M`
-- **CTF-colour-coded overview bar** — click any bar to jump directly to
-  that tilt
-- **Exclusion** of bad tilts writes to both the `.tomostar` and
-  `<UseTilt>` in the tilt-series XML; previous exclusions are restored
-  automatically on next load
+- **Motion track overlay** drawn spatially on the tilt image — each patch placed at its correct grid position and colour-coded by motion magnitude (green = low, red = high). Toggle on/off with a checkbox or `Ctrl+M`
+- **CTF-colour-coded overview bar** — click any bar to jump directly to that tilt
+- **Exclusion** of bad tilts writes to both the `.tomostar` and <UseTilt>` in the tilt-series XML; previous exclusions are restored automatically on next load
 - **Scrollable tilt series list** — switch between datasets with a click
-- **Per-tilt metadata** — CTF fit (Å), defocus (µm), and motion (Å) from
-  WarpTools per-frame XML
+- **Per-tilt metadata** — CTF fit (Å), defocus (µm), and motion (Å) from WarpTools per-frame XML
 
 ---
 
@@ -42,36 +32,33 @@ Using the provided `environment.yml`:
 
 ```bash
 conda env create -f environment.yml
-conda activate warp_tools_visualiser
+conda activate warptools_visualiser
 ```
 
 Or manually:
 
 ```bash
-conda create -n warp_tools_visualiser \
+conda create -n warptools_visualiser \
     python=3.11 pyqt numpy mrcfile matplotlib \
     -c conda-forge -y
-conda activate warp_tools_visualiser
+conda activate warptools_visualiser
 ```
 
 ### 3. Install the `warptools_visualiser` command (recommended)
 
-Installing the package with `pip` registers a `warptools_visualiser` command
-so you can launch it from anywhere without typing `python` or the full path:
+Installing the package with `pip` registers a `warptools_visualiser` command so you can launch it from anywhere without typing `python` or the full path:
 
 ```bash
 pip install -e .
 ```
 
-The `-e` (editable) flag means `git pull` updates take effect immediately
-without reinstalling. After this you can run:
+The `-e` (editable) flag means `git pull` updates take effect immediately without reinstalling. After this you can run:
 
 ```bash
 warptools_visualiser --tomostar_dir $WARP --stack_dir $warp_ts ...
 ```
 
-> If you prefer not to install, you can always run the script directly with
-> `python warptools_visualiser.py --tomostar_dir $WARP ...`
+> If you prefer not to install, you can always run the script directly with`python warptools_visualiser.py --tomostar_dir $WARP ...`
 
 ### 4. Verify the installation
 
@@ -84,27 +71,22 @@ warptools_visualiser --help
 
 ## Updating
 
-If you already have a previous version installed and want the latest release
-from GitHub:
+If you already have a previous version installed and want the latest release from GitHub:
 
 ### If you installed with `pip install -e .` (editable mode)
 
-This is the simplest case — the editable install points directly at your
-local clone, so a `git pull` is all that is needed. The `warptools_visualiser`
-command picks up the new code automatically.
+This is the simplest case — the editable install points directly at your local clone, so a `git pull` is all that is needed. The `warptools_visualiser` command picks up the new code automatically.
 
 ```bash
 cd warptools_visualiser     # your local clone
 git pull origin main
 ```
 
-> `git` does not require the conda environment to be active. You only need the
-> environment active when you actually run `warptools_visualiser`.
+> `git` does not require the conda environment to be active. You only need the environment active when you actually run `warptools_visualiser`.
 
 ### If you installed with a regular `pip install .` (non-editable)
 
-A plain install copies the code into the environment, so after pulling you
-must reinstall for the changes to take effect:
+A plain install copies the code into the environment, so after pulling you must reinstall for the changes to take effect:
 
 ```bash
 cd warptools_visualiser
@@ -115,8 +97,7 @@ pip install . --upgrade
 
 ### If you only downloaded the script (no pip install)
 
-Replace your local `warptools_visualiser.py` with the latest version from the
-repository, or re-clone:
+Replace your local `warptools_visualiser.py` with the latest version from the repository, or re-clone:
 
 ```bash
 cd warptools_visualiser
@@ -127,8 +108,7 @@ then run it directly with `python warptools_visualiser.py ...`.
 
 ### If the dependencies changed
 
-The conda environment only needs to be recreated if `environment.yml` has
-changed (rare). If a new release notes a dependency change, update with:
+The conda environment only needs to be recreated if `environment.yml` has changed (rare). If a new release notes a dependency change, update with:
 
 ```bash
 conda env update -f environment.yml --prune
@@ -142,8 +122,7 @@ git log --oneline -1        # shows the latest commit you have
 git tag --points-at HEAD    # shows the release tag, if any
 ```
 
-Compare against the [releases page](https://github.com/jjenkins01/warptools_visualiser/releases)
-to see whether a newer version is available.
+Compare against the [releases page](https://github.com/jjenkins01/warptools_visualiser/releases) to see whether a newer version is available.
 
 ---
 
@@ -160,7 +139,7 @@ to see whether a newer version is available.
 
 The visualiser expects standard WarpTools output structure, here's an example with a single tomogram called tomogram01:
 
-```bash
+```
 warp_frameseries                                 Frame-series processing dir
 ├── tomogram01.tomostar                          Tilt series metadata (this can also be in a separate directory if you like)
 ├── tomogram01_001_*_Fractions.xml               Per-frame CTF / motion XML
@@ -192,12 +171,12 @@ warp_ts=/path/to/warp_tiltseries
 ### Batch mode — all tilt series in a directory
 
 ```bash
-conda activate warp_tools_visualiser
+conda activate warptools_visualiser
 
 warptools_visualiser \
-    --tomostar_dir $WARP    \
+    --tomostar_dir $warp_fs \
     --stack_dir    $warp_ts \
-    --frame_dir    $WARP    \
+    --frame_dir    $warp_fs \
     --xml_dir      $warp_ts
 ```
 
@@ -205,10 +184,10 @@ warptools_visualiser \
 
 ```bash
 warptools_visualiser \
-    --stack     $warp_ts/tiltstack/Position_28/Position_28.st \
-    --tomostar  $WARP/Position_28.tomostar \
-    --frame_dir $WARP \
-    --xml       $warp_ts/Position_28.xml
+    --stack     $warp_ts/tiltstack/tomogram01/tomogram01.st \
+    --tomostar  $warp_fs/tomogram01.tomostar \
+    --frame_dir $warp_fs \
+    --xml       $warp_ts/tomogram01.xml
 ```
 
 ### All arguments
@@ -230,32 +209,13 @@ warptools_visualiser \
 
 ## Interface
 
-```
-┌──────────────────────────┬─────────────────────────┬──────────────────┐
-│                          │                         │  Tilt Series     │
-│   Tilt Image             │   Power Spectrum        │  ─────────────   │
-│   (+ motion overlay)     │   (2:1 aspect ratio)    │  [*] Position_28 │
-│                          │                         │  [ ] Position_29 │
-│                          │                         │  ...             │
-├──────────────────────────┴─────────────────────────┤                  │
-│   Overview bar  (click to jump to tilt)             │                  │
-├─────────────────────────────────────────────────────┴──────────────────┤
-│   CTF: X.X Å  |  Defocus: X.XXX µm  |  Motion: X.XX Å  |  Series: …  │
-│                        Tilt N/61   ±XX.XX°                              │
-├─────────────────────────────────────────────────────────────────────────┤
-│  < Prev  > Next  Exclude [Ctrl+E]  All On  Save  Next Series  Quit+Save │
-│  [✓] Motion Overlay [Ctrl+M]                                            │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+![warptools_visualiser_gui](/Users/fbsjje/process/warptools_visualiser_original_deposition/docs/images/warptools_visualiser_gui.png)
 
 ### Tilt image panel
 
-Displays the motion-corrected average for the current tilt. When a tilt is
-excluded a red overlay appears with a "Bad frame — excluded" text label.
+Displays the motion-corrected average for the current tilt. When a tilt is excluded a red overlay appears with a "Bad frame — excluded" text label.
 
-**Motion overlay** — when enabled, draws each motion-correction patch
-trajectory at its spatial position on the image. A faint grid shows the
-patch boundaries. Tracks are colour-coded by arc-length:
+**Motion overlay** — when enabled, draws each motion-correction patch trajectory at its spatial position on the image. A faint grid shows the patch boundaries. Tracks are colour-coded by arc-length:
 
 | Colour | Motion |
 |---|---|
@@ -267,24 +227,16 @@ Toggle with the **Motion Overlay** checkbox or `Ctrl+M`.
 
 Two additional controls refine the motion display:
 
-- **Local only** — subtracts the global mean trajectory (averaged across all
-  patches) from each patch, leaving only the local, non-global component of
-  the motion. This matches the "only local motion" option in the Warp GUI and
-  is useful for spotting localised beam-induced movement.
-- **Scale** — magnifies the drawn tracks (1×–100×) so small displacements are
-  easier to see, without changing the underlying data.
+- **Local only** — subtracts the global mean trajectory (averaged across all patches) from each patch, leaving only the local, non-global component of the motion. This matches the "only local motion" option in the Warp GUI and is useful for spotting localised beam-induced movement.
+- **Scale** — magnifies the drawn tracks (1×–100×) so small displacements are easier to see, without changing the underlying data.
 
 ### Power spectrum panel
 
-Displays the CTF power spectrum from `powerspectrum/` with square-root
-scaling. The 2:1 aspect ratio is preserved — WarpTools stores only the
-non-redundant half of the Fourier transform, so rings always appear as
-semicircles.
+Displays the CTF power spectrum from `powerspectrum/` with square-root scaling. The 2:1 aspect ratio is preserved.
 
 ### Overview bar
 
-One coloured bar per tilt. **Click any bar to jump directly to that tilt.**
-Colour coding (priority order):
+One coloured bar per tilt. **Click any bar to jump directly to that tilt.**Colour coding (priority order):
 
 | Colour | Meaning |
 |---|---|
@@ -294,10 +246,19 @@ Colour coding (priority order):
 | Amber | CTF fit 8–10 Å |
 | Green | CTF fit ≤ 8 Å |
 
+### Bulk exclude-by-colour
+
+A row of coloured buttons below the main controls excludes every tilt of a given category in a single click, which is faster than stepping through them one at a time:
+
+- **Purple (CTF > 10 Å)** — exclude all poorly-fitting tilts
+- **Amber (CTF 8–10 Å)** — exclude all moderate-fit tilts
+- **Orange (flagged)** — exclude all auto-flagged intensity outliers
+
+These act on the current tilt series and respect existing exclusions (already excluded tilts are left as-is). The result is saved to `<UseTilt>` like any other exclusion.
+
 ### Tilt series list
 
-Lists all tilt series found in the processing directory. Click a name to
-switch to it. Scroll with the mouse wheel.
+Lists all tilt series found in the processing directory. Click a name to switch to it. Scroll with the mouse wheel.
 
 ---
 
@@ -313,74 +274,32 @@ switch to it. Scroll with the mouse wheel.
 | `Ctrl+Q` | Save and quit |
 | `Ctrl+R` | Reset — mark all tilts as included |
 
-> **Why Ctrl+E and not just E?** The tilt series list widget consumes
-> single-letter keypresses for its built-in search, so bare `E` never
-> reaches the window's key handler. `Ctrl+<letter>` combinations bypass
-> this.
+> **Why Ctrl+E and not just E?** The tilt series list widget consumes single-letter keypresses for its built-in search, so bare `E` never reaches the window's key handler. `Ctrl+<letter>` combinations bypassthis.
 
 ---
 
 ## What gets saved
 
-When you press **Save** or **Quit+Save** two files are updated per series:
+When you press **Save** or **Quit+Save**, exclusions are written to the
+tilt-series XML for the current series:
 
-**`.tomostar`** — excluded tilt rows are removed. WarpTools reads this for
-all downstream processing (`ts_stack`, `ts_ctf`, `ts_reconstruct`), so
-excluded tilts are automatically skipped.
+**Tilt-series XML `<UseTilt>`** — set to `False` for each excluded tilt and`True` for included tilts. This is WarpTools' native exclusion mechanism:`ts_stack`, `ts_ctf`, and `ts_reconstruct` all read `<UseTilt>` and skip the tilts marked `False`. The XML is written in WarpTools' exact format (first value on the opening-tag line, last value on the closing-tag line) so it parses correctly.
 
-**Tilt-series XML `<UseTilt>`** — set to `False` for excluded tilts,
-keeping the WarpTools processing state consistent.
+> **Note:** the visualiser does **not** modify the `.tomostar` file. Earlier versions removed excluded rows from the tomostar, but this shortened it relative to the full-length `<UseTilt>` list and broke `ts_stack`. Keeping the tomostar intact and recording exclusions only in `<UseTilt>` is the robust approach and round-trips correctly across sessions.
 
-Both files receive a timestamped backup before writing:
+A timestamped backup of the XML is created before writing:
 
 ```
-Position_28.tomostar.backup_20260527_103042
-Position_28.xml.backup_20260527_103042
+tomogram01.xml.backup_20260618_154500
 ```
 
-**Previous exclusions are restored automatically** — the `<UseTilt>` field
-is read from the XML every time a series is loaded.
-
----
-
-## Troubleshooting
-
-**`No module named 'PyQt5'`**
-Recreate the environment following the installation steps above.
-
-**Window is blank / no display**
-Verify X11 forwarding is active:
-```bash
-echo $DISPLAY    # should show e.g. localhost:10.0
-```
-Reconnect with `ssh -X` or `ssh -Y` if empty.
-
-**Power spectrum shows "not found"**
-Check that `--frame_dir` points to the directory containing the
-`powerspectrum/` subdirectory.
-
-**Motion overlay not appearing**
-Motion JSON files are searched in `$WARP/` and `$WARP/average/`. Locate
-them with:
-```bash
-find $WARP -name "*_motion.json" | head -3
-```
-
-**Some motion files missing (e.g. 57/61)**
-Tilts that failed `fs_motion_and_ctf` have no motion file. This is
-expected; those tilts show no overlay and are good candidates for exclusion.
-
-**Qt GLX / session manager warnings**
-Harmless X11 messages, suppressed automatically by the script.
+**Previous exclusions are restored automatically** — the `<UseTilt>` field is read from the XML every time a series is loaded, so reopening a dataset shows your earlier exclusions on the overview bar.
 
 ---
 
 ## Acknowledgements
 
-This tool was written by **Joshua Jenkins** with
-assistance from **[Claude](https://claude.ai)** (Anthropic) as part of a
-cryoET subtomogram averaging pipeline integrating WarpTools, MissAlignment,
-RELION 5, and MTools.
+This tool was written by **Joshua Jenkins** with assistance from **[Claude](https://claude.ai)** (Anthropic) as part of a cryoET subtomogram averaging pipeline integrating WarpTools, MissAlignment, RELION 5, and MTools.
 
 ---
 

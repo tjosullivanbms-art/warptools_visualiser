@@ -4,6 +4,39 @@ All notable changes to the WarpTools Tilt Series Visualiser are documented here.
 
 ---
 
+## [1.3.0] - 2026-06-18
+
+### Fixed
+- **`<UseTilt>` formatting broke `ts_stack`** — saved tilt-series XML files
+  were reformatted by `ET.indent()` and given leading/trailing newlines, so
+  the first and last tilt values no longer sat on the same lines as the
+  `<UseTilt>` / `</UseTilt>` tags. WarpTools' parser rejected this, causing
+  `ts_stack` to fail with "a valid path is needed for each tilt". The XML is
+  now written in WarpTools' exact format (first value on the opening-tag line,
+  last value on the closing-tag line, newline-separated, no indentation).
+- **Exclusions were not restored on reopen** — the overview bar reset to all
+  green when reopening a dataset because the `<UseTilt>` reader used a plain
+  truthiness check on the XML element. An ElementTree element with no child
+  elements is falsy, so the check always failed and exclusions were never
+  read back. Fixed by testing `is not None`. Previous exclusions now reload
+  correctly.
+
+### Changed
+- **Exclusions recorded only in `<UseTilt>`** — the visualiser no longer
+  removes rows from the `.tomostar`. Row removal shortened the file relative
+  to the full-length `<UseTilt>` list, breaking alignment on reload and
+  double-applying exclusions once `ts_stack` regenerated the stack. Relying
+  solely on `<UseTilt>` (WarpTools' native mechanism) keeps everything
+  consistent and round-trips correctly.
+
+### Added
+- **Bulk exclude-by-colour buttons** — a new button row excludes every tilt
+  of a given overview category in one click: Purple (CTF > 10 Å), Amber
+  (CTF 8–10 Å), and Orange (auto-flagged). Existing per-tilt exclusion and
+  all other controls are unchanged.
+
+---
+
 ## [1.2.0] - 2026-06-17
 
 ### Added

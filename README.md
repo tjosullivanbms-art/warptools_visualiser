@@ -9,9 +9,11 @@ An interactive quality control tool for tilt series data processed with [WarpToo
 ## Features
 
 - **Side-by-side display** of the tilt image and power spectrum
+- **Images from `average/`** — every acquired tilt is shown (loaded from the per-tilt motion-corrected averages), so excluded tilts remain visible and can be re-included later
 - **Motion track overlay** drawn spatially on the tilt image — each patch placed at its correct grid position and colour-coded by motion magnitude (green = low, red = high). Toggle on/off with a checkbox or `Ctrl+M`
 - **CTF-colour-coded overview bar** — click any bar to jump directly to that tilt
-- **Exclusion** of bad tilts writes to both the `.tomostar` and `<UseTilt>` in the tilt-series XML; previous exclusions are restored automatically on next load
+- **Exclusion** of bad tilts writes to `<UseTilt>` in the tilt-series XML (mapped by tilt angle); the `.tomostar` is never modified, and previous exclusions are restored automatically on next load
+- **Bulk exclude-by-colour** — exclude all tilts of a category (purple / amber / orange) in one click
 - **Scrollable tilt series list** — switch between datasets with a click
 - **Per-tilt metadata** — CTF fit (Å), defocus (µm), and motion (Å) from WarpTools per-frame XML
 
@@ -55,7 +57,7 @@ pip install -e .
 The `-e` (editable) flag means `git pull` updates take effect immediately without reinstalling. After this you can run:
 
 ```bash
-warptools_visualiser --tomostar_dir $warp_fs --stack_dir $warp_ts ...
+warptools_visualiser --tomostar_dir $warp_fs --frame_dir $warp_fs --xml_dir $warp_ts
 ```
 
 > If you prefer not to install, you can always run the script directly with `python warptools_visualiser.py --tomostar_dir $warp_fs ...`
@@ -140,21 +142,21 @@ Compare against the [releases page](https://github.com/jjenkins01/warptools_visu
 The visualiser expects standard WarpTools output structure, here's an example with a single tomogram called tomogram01:
 
 ```
-warp_frameseries                                 Frame-series processing dir
-├── tomogram01.tomostar                          Tilt series metadata (this can also be in a separate directory if you like)
-├── tomogram01_001_*_Fractions.xml               Per-frame CTF / motion XML
+warp_frameseries                                Frame-series processing dir
+├── tomogram01.tomostar                          Tilt series metadata (can be in a separate directory if you like)
+├── tomogram01_001_*_Fractions.xml              Per-frame CTF / motion XML
 ├── powerspectrum/
-│   └── tomogram01_001_*_Fractions.mrc           Power spectrum per tilt
+│   └── tomogram01_001_*_Fractions.mrc          Power spectrum per tilt
 └── average/
-    └── tomogram01_001_*_Fractions_motion.json   Motion tracks per tilt
+    ├── tomogram01_001_*_Fractions.mrc          Per-tilt motion-corrected average (DISPLAYED by the visualiser)
+    └── tomogram01_001_*_Fractions_motion.json  Motion tracks per tilt
 
-warp_tiltseries                                  Tilt-series processing dir
-├── warp_tiltseries.settings                     WarpTools settings file
-├── tomogram01.xml                               Tilt-series XML (<UseTilt>)
-└── tiltstack/
-    └── tomogram01/
-        └── tomogram01.st                        Tilt series stack
+warp_tiltseries                                 Tilt-series processing dir
+├── warp_tiltseries.settings                    WarpTools settings file
+└── tomogram01.xml                              Tilt-series XML (<UseTilt> — exclusions saved here)
 ```
+
+> The visualiser displays the per-tilt images from `average/` and saves exclusions to the tilt-series `.xml`. It does **not** read the `.st` stack in`tiltstack/` — that stack is produced later by `ts_stack`, which reads the`<UseTilt>` exclusions you set here.
 
 Setting shell variables beforehand can help to speed up commands but not essential:
 
@@ -175,7 +177,6 @@ conda activate warptools_visualiser
 
 warptools_visualiser \
     --tomostar_dir $warp_fs \
-    --stack_dir    $warp_ts \
     --frame_dir    $warp_fs \
     --xml_dir      $warp_ts
 ```
@@ -184,7 +185,6 @@ warptools_visualiser \
 
 ```bash
 warptools_visualiser \
-    --stack     $warp_ts/tiltstack/tomogram01/tomogram01.st \
     --tomostar  $warp_fs/tomogram01.tomostar \
     --frame_dir $warp_fs \
     --xml       $warp_ts/tomogram01.xml
@@ -194,13 +194,11 @@ warptools_visualiser \
 
 | Argument | Description |
 |---|---|
-| `--tomostar_dir DIR` | Directory containing `.tomostar` files — typically `$warp_fs` |
-| `--stack_dir DIR` | Directory containing `tiltstack/` subdirs — typically `$warp_ts` |
-| `--frame_dir DIR` | Frame-series dir (`$warp_fs`) — per-frame XMLs, `powerspectrum/`, `average/` |
-| `--xml_dir DIR` | Directory containing tilt-series XML files — typically `$warp_ts` |
-| `--stack ST` | Single tilt series stack (`.st` or `.mrc`) — single-file mode |
-| `--tomostar STAR` | Tomostar file — required with `--stack` |
-| `--xml XML` | Tilt-series XML — optional with `--stack`, auto-detected if omitted |
+| `--tomostar_dir DIR` | Directory containing `.tomostar` files (batch mode) — typically `$warp_fs` |
+| `--tomostar STAR` | A single `.tomostar` file (single-series mode) |
+| `--frame_dir DIR` | **Required.** Frame-series dir (`$warp_fs`) containing `average/` (per-tilt images + `*_motion.json`), `powerspectrum/`, and per-frame XMLs. Images are loaded from `average/`. |
+| `--xml_dir DIR` | Directory containing tilt-series XML files (batch mode) — typically `$warp_ts`. Defaults to the tomostar's own directory. |
+| `--xml XML` | Tilt-series XML (single-series mode) — auto-detected next to the tomostar if omitted |
 | `--sigma FLOAT` | Sigma for auto-flagging intensity outliers (default: 3.0) |
 | `--contrast_lo INT` | Lower percentile for image contrast (default: 2) |
 | `--contrast_hi INT` | Upper percentile for image contrast (default: 98) |

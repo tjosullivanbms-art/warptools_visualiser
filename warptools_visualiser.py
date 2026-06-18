@@ -6,11 +6,17 @@ PyQt5-based interactive viewer for WarpTools tilt series quality control.
 
 Layout
 ------
-  Left   : tilt image with optional motion track overlay (QPainter)
+  Left   : tilt image (from average/) with optional motion track overlay
   Right  : power spectrum (aspect-correct, 2:1 for half-Fourier images)
   Far right: scrollable tilt series list
   Bottom : overview bar (click to jump; CTF-colour-coded)
   Info   : CTF fit, defocus, motion per tilt from per-frame XML
+
+Images are loaded from the per-tilt motion-corrected averages in
+<frame_dir>/average/ (matched to the tomostar by movie name), NOT from a
+.st stack. This means every acquired tilt is always shown — including ones
+that have been excluded — so reopening a previously-edited dataset displays
+the excluded tilts in red.
 
 Motion tracks are drawn spatially — each patch at its correct grid position
 on the image — and colour-coded by arc-length (green=low, red=high). Toggle
@@ -18,8 +24,9 @@ the overlay with the checkbox in the button bar. "Local only" subtracts the
 global mean trajectory to show only local (non-global) motion, and the Scale
 dropdown magnifies the tracks for easier inspection.
 
-Exclusions write to both .tomostar and <UseTilt> in tilt-series XML.
-Previous exclusions are restored from XML on load.
+Exclusions are written to <UseTilt> in the tilt-series XML (mapped by tilt
+angle). The .tomostar is never modified. Previous exclusions are restored
+from the XML on load.
 
 Requires
 --------
@@ -27,15 +34,17 @@ Requires
 
 Usage
 -----
-  # If installed via pip (provides the warptools_visualiser command):
+  # Batch mode (all .tomostar in a directory). Images come from --frame_dir/average/
   warptools_visualiser \\
-      --tomostar_dir $WARP       \\
-      --stack_dir    $warp_ts    \\
-      --frame_dir    $WARP       \\
+      --tomostar_dir $warp_fs \\
+      --frame_dir    $warp_fs \\
       --xml_dir      $warp_ts
 
-  # Or run the script directly:
-  python warptools_visualiser.py --tomostar_dir $WARP ...
+  # Single series
+  warptools_visualiser \\
+      --tomostar $warp_fs/Position_1.tomostar \\
+      --frame_dir $warp_fs \\
+      --xml $warp_ts/Position_1.xml
 
 Keyboard shortcuts
 ------------------
@@ -340,12 +349,6 @@ def get_tilt_angles(col_names, rows):
         return list(range(len(rows)))
 
 
-def load_mrc_stack(path):
-    with mrcfile.open(path, mode='r', permissive=True) as m:
-        data = m.data.astype(np.float32)
-    return data[np.newaxis] if data.ndim == 2 else data
-
-
 def load_mrc_image(path):
     if not path or not os.path.exists(path): return None
     try:
@@ -354,37 +357,67 @@ def load_mrc_image(path):
     except Exception: return None
 
 
-def auto_flag_candidates(stack, sigma=3.0):
-    means = np.array([s.mean() for s in stack])
-    std = means.std()
-    if std == 0: return [False] * len(stack)
-    z = np.abs(means - means.mean()) / std
-    return [bool(z[i] > sigma) for i in range(len(stack))]
+def auto_flag_candidates_from_paths(paths, sigma=3.0):
+    """
+    Flag intensity-outlier tilts given a list of per-tilt image paths.
+    Loads each image once to compute its mean; missing files are skipped
+    (never flagged). Returns list[bool] aligned with `paths`.
+    """
+    n = len(paths)
+    means = np.full(n, np.nan, dtype=np.float64)
+    for i, p in enumerate(paths):
+        img = load_mrc_image(p)
+        if img is not None:
+            means[i] = float(img.mean())
+    valid = ~np.isnan(means)
+    if valid.sum() < 2:
+        return [False] * n
+    mu = means[valid].mean()
+    sd = means[valid].std()
+    flagged = [False] * n
+    if sd == 0:
+        return flagged
+    for i in range(n):
+        if valid[i] and abs(means[i] - mu) / sd > sigma:
+            flagged[i] = True
+    return flagged
 
 
-def find_tilt_series(tomostar_dir, stack_dir=None, xml_dir=None):
-    search_dirs = [d for d in [stack_dir, tomostar_dir] if d]
+def resolve_average_paths(frame_dir, movies):
+    """
+    Given the frame-series dir and the list of movie names from a tomostar,
+    return a list of paths to the per-tilt averaged .mrc images in
+    <frame_dir>/average/. Each tomostar _wrpMovieName matches an average
+    filename exactly. Missing files (e.g. tilts that failed motion correction)
+    are returned as None so they can be shown as placeholders.
+    """
+    avg_dir = os.path.join(frame_dir, 'average')
+    paths = []
+    for mv in movies:
+        cand = os.path.join(avg_dir, mv)
+        paths.append(cand if os.path.exists(cand) else None)
+    return paths
+
+
+def find_tilt_series(tomostar_dir, frame_dir, xml_dir=None):
+    """
+    Discover tilt series for batch mode.
+
+    Images are taken from <frame_dir>/average/ (the per-tilt motion-corrected
+    averages), NOT from a .st stack — this means every acquired tilt is always
+    available for display, including ones that have been excluded, so reopening
+    a previously-edited dataset shows excluded tilts in red.
+
+    Returns a list of (tomostar_path, xml_path) tuples.
+    """
     pairs = []
     for ts_path in sorted(glob.glob(os.path.join(tomostar_dir, '*.tomostar'))):
-        base = os.path.splitext(ts_path)[0]
-        name = os.path.basename(base)
-        stack_path = None
-        for sd in search_dirs:
-            for sub in [os.path.join(sd, 'tiltstack', name),
-                        os.path.join(sd, 'stacks'), sd]:
-                for ext in ('.st', '.mrc', '.mrcs'):
-                    c = os.path.join(sub, name + ext)
-                    if os.path.exists(c): stack_path = c; break
-                if stack_path: break
-            if stack_path: break
+        name = os.path.basename(os.path.splitext(ts_path)[0])
         xml_path = None
         for xd in ([xml_dir] if xml_dir else []) + [os.path.dirname(ts_path)]:
             c = os.path.join(xd, name + '.xml')
             if os.path.exists(c): xml_path = c; break
-        if stack_path:
-            pairs.append((stack_path, ts_path, xml_path))
-        else:
-            print(f"  [WARN] No stack for {name} — skipping")
+        pairs.append((ts_path, xml_path))
     return pairs
 
 # ---------------------------------------------------------------------------
@@ -692,25 +725,28 @@ class MainWindow(QMainWindow):
 
     def _load_series(self, idx):
         if idx in self._cache: return
-        sp, tp, xp = self.series_list[idx]
+        tp, xp = self.series_list[idx]
         name = os.path.splitext(os.path.basename(tp))[0]
         print(f"  Loading [{idx+1}/{len(self.series_list)}] {name} ...")
-        stack = load_mrc_stack(sp)
         col_names, rows = parse_tomostar(tp)
-        n = stack.shape[0]
         movies  = get_movie_names(col_names, rows)
         angles  = get_tilt_angles(col_names, rows)
-        # Map exclusions by tilt angle: the XML <UseTilt> is ordered by angle
-        # and may have more entries than this (possibly reduced) stack, so a
-        # positional mapping would be wrong.
-        excluded = read_usetilt_from_xml(xp, n, tilt_angles=angles[:n])
+        n = len(movies)
 
-        # Per-frame XML is cheap (small files) — read up front for the
-        # overview CTF colouring. Motion JSON can be large, so resolve only
-        # the file *paths* now and load each lazily on first view.
+        # Per-tilt images come from <frame_dir>/average/ — one .mrc per tilt,
+        # matched to the tomostar by movie name. This shows every acquired
+        # tilt (including excluded ones), unlike a reduced .st stack.
+        image_paths = resolve_average_paths(self.frame_dir, movies) \
+            if self.frame_dir else [None] * n
+
+        # Map exclusions by tilt angle (the XML <UseTilt> is angle-ordered).
+        excluded = read_usetilt_from_xml(xp, n, tilt_angles=angles)
+
+        # Per-frame XML (small) read up front for CTF colouring; motion JSON
+        # paths resolved now and parsed lazily on first view.
         frame_meta  = []
         motion_paths = []
-        for mv in movies[:n]:
+        for mv in movies:
             xml_f = mot_f = None
             if self.frame_dir:
                 stem = os.path.splitext(mv)[0]
@@ -723,18 +759,32 @@ class MainWindow(QMainWindow):
             frame_meta.append(read_frame_xml(xml_f))
             motion_paths.append(mot_f)
 
+        n_img = sum(1 for p in image_paths if p is not None)
         n_mot = sum(1 for m in motion_paths if m is not None)
-        print(f"  Motion files: {n_mot}/{n}")
+        print(f"  Average images: {n_img}/{n}   Motion files: {n_mot}/{n}")
+
         self._cache[idx] = dict(
             name=name, tomostar_path=tp, ts_xml=xp,
-            stack=stack, col_names=col_names, rows=rows, n=n,
+            col_names=col_names, rows=rows, n=n,
             excluded=excluded,
-            flagged=auto_flag_candidates(stack, self.sigma),
-            angles=angles[:n], movies=movies[:n],
+            flagged=auto_flag_candidates_from_paths(image_paths, self.sigma),
+            angles=angles, movies=movies,
+            image_paths=image_paths,          # per-tilt average .mrc paths
+            image_cache={},                   # idx -> loaded image (lazy)
             frame_meta=frame_meta,
-            motion_paths=motion_paths,        # resolved paths
+            motion_paths=motion_paths,
             motion_cache={},                  # idx -> parsed JSON (lazy)
         )
+
+    def _get_image(self, ti):
+        """Lazily load and cache the average image for tilt ti."""
+        s = self._s()
+        if ti in s['image_cache']:
+            return s['image_cache'][ti]
+        path = s['image_paths'][ti] if ti < len(s['image_paths']) else None
+        img = load_mrc_image(path)
+        s['image_cache'][ti] = img
+        return img
 
     def _get_motion(self, ti):
         """Lazily load and cache the motion JSON for tilt ti of current series."""
@@ -797,7 +847,7 @@ class MainWindow(QMainWindow):
             QListWidget::item:selected {{ background: {C_HOVER}; }}
             QListWidget::item:hover    {{ background: #1a2a3a; }}
         """)
-        for _, tp, _ in self.series_list:
+        for tp, _ in self.series_list:
             self.series_list_widget.addItem(
                 os.path.splitext(os.path.basename(tp))[0])
         self.series_list_widget.setCurrentRow(0)
@@ -963,14 +1013,15 @@ class MainWindow(QMainWindow):
     def _refresh(self):
         s  = self._s()
         ti = self.tilt_idx
-        img   = s['stack'][ti]
+        img   = self._get_image(ti)
         angle = s['angles'][ti] if ti < len(s['angles']) else ti
         excl  = s['excluded'][ti]
         cand  = s['flagged'][ti]
         meta  = s['frame_meta'][ti]  if ti < len(s['frame_meta'])  else {}
         mdata = self._get_motion(ti)
 
-        # Tilt image with motion overlay
+        # Tilt image with motion overlay (img may be None if the average is
+        # missing — set_array handles None by clearing the panel)
         self.img_tilt.set_array(img, self.clo, self.chi,
                                  excluded=excl, candidate=cand,
                                  motion_data=mdata)
@@ -1125,11 +1176,11 @@ class MainWindow(QMainWindow):
 # Entry point
 # ---------------------------------------------------------------------------
 
-def run_batch(tomostar_dir, stack_dir=None, frame_dir=None,
-              xml_dir=None, sigma=3.0, contrast_lo=2, contrast_hi=98):
-    pairs = find_tilt_series(tomostar_dir, stack_dir, xml_dir)
+def run_batch(tomostar_dir, frame_dir, xml_dir=None,
+              sigma=3.0, contrast_lo=2, contrast_hi=98):
+    pairs = find_tilt_series(tomostar_dir, frame_dir, xml_dir)
     if not pairs:
-        print(f"[ERROR] No tilt series in {tomostar_dir}"); sys.exit(1)
+        print(f"[ERROR] No .tomostar files in {tomostar_dir}"); sys.exit(1)
     print(f"Found {len(pairs)} tilt series")
     app = QApplication.instance() or QApplication(sys.argv)
     win = MainWindow(pairs, frame_dir, sigma, contrast_lo, contrast_hi)
@@ -1144,15 +1195,21 @@ def parse_args():
         epilog=__doc__,
     )
     mode = p.add_mutually_exclusive_group(required=True)
-    mode.add_argument('--tomostar_dir', metavar='DIR')
-    mode.add_argument('--stack',        metavar='ST')
-    p.add_argument('--stack_dir',   metavar='DIR')
-    p.add_argument('--tomostar',    metavar='STAR')
-    p.add_argument('--xml',         metavar='XML')
-    p.add_argument('--frame_dir',   metavar='DIR',
-                   help="$WARP — per-frame XMLs, powerspectrum/, "
-                        "average/*_motion.json")
-    p.add_argument('--xml_dir',     metavar='DIR')
+    mode.add_argument('--tomostar_dir', metavar='DIR',
+                      help="Directory of .tomostar files (batch mode)")
+    mode.add_argument('--tomostar',     metavar='STAR',
+                      help="A single .tomostar file (single-series mode)")
+    p.add_argument('--frame_dir',   metavar='DIR', required=True,
+                   help="Frame-series dir ($warp_fs) containing average/ "
+                        "(per-tilt images + *_motion.json), powerspectrum/, "
+                        "and per-frame XMLs. REQUIRED — images are loaded "
+                        "from average/.")
+    p.add_argument('--xml',         metavar='XML',
+                   help="Tilt-series XML for single-series mode "
+                        "(auto-detected next to the tomostar if omitted)")
+    p.add_argument('--xml_dir',     metavar='DIR',
+                   help="Directory of tilt-series XML files (batch mode; "
+                        "defaults to the tomostar's own directory)")
     p.add_argument('--sigma',       type=float, default=3.0)
     p.add_argument('--contrast_lo', type=int,   default=2)
     p.add_argument('--contrast_hi', type=int,   default=98)
@@ -1162,17 +1219,15 @@ def parse_args():
 def main():
     args = parse_args()
     if args.tomostar_dir:
-        run_batch(args.tomostar_dir, args.stack_dir, args.frame_dir,
-                  args.xml_dir, args.sigma, args.contrast_lo, args.contrast_hi)
+        run_batch(args.tomostar_dir, args.frame_dir, args.xml_dir,
+                  args.sigma, args.contrast_lo, args.contrast_hi)
     else:
-        if not args.tomostar:
-            print("[ERROR] --tomostar required with --stack"); sys.exit(1)
         ts_xml = args.xml
         if not ts_xml:
             auto = os.path.splitext(args.tomostar)[0] + '.xml'
             if os.path.exists(auto): ts_xml = auto
         app = QApplication.instance() or QApplication(sys.argv)
-        win = MainWindow([(args.stack, args.tomostar, ts_xml)],
+        win = MainWindow([(args.tomostar, ts_xml)],
                          args.frame_dir, args.sigma,
                          args.contrast_lo, args.contrast_hi)
         win.show()

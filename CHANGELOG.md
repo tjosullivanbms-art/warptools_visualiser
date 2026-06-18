@@ -4,6 +4,47 @@ All notable changes to the WarpTools Tilt Series Visualiser are documented here.
 
 ---
 
+## [1.4.0] - 2026-06-18
+
+### Changed
+- **Images now load from `average/`, not the `.st` stack** — the visualiser
+  reads each tilt's motion-corrected average from `<frame_dir>/average/`,
+  matched to the tomostar by movie name. Because `average/` always contains
+  every acquired tilt, reopening a previously-edited dataset now correctly
+  shows excluded tilts (in red) — they are no longer missing just because a
+  reduced stack was generated. This resolves the issue where reopening a
+  dataset showed only the retained tilts.
+- Per-tilt images are loaded lazily and cached, so navigation stays fast and
+  memory use is lower than loading a whole stack.
+
+### Removed
+- **`--stack` and `--stack_dir` arguments** — no longer needed. Images come
+  from `average/` via `--frame_dir`, which is now required. A reduced stack
+  was the source of the "excluded tilts disappear on reopen" problem, so the
+  stack is no longer used for display at all.
+
+### Migration
+- Batch mode: replace `--stack_dir $warp_ts` with nothing; ensure
+  `--frame_dir $warp_fs` is present (it points at the dir containing
+  `average/`). Single mode: drop `--stack`; keep `--tomostar`, `--frame_dir`
+  and `--xml`.
+
+---
+
+## [1.3.1] - 2026-06-18
+
+### Fixed
+- **Exclusions were mapped to the wrong tilts** — the tilt-series XML orders
+  `<UseTilt>`/`<Angles>` by **tilt angle** (e.g. −60°…+60°), whereas the tilt
+  stack and `.tomostar` are ordered by **acquisition sequence** (dose-symmetric:
+  −18, −16, … 0, 2, 4 …), and the stack may also be a reduced subset. The
+  visualiser previously mapped exclusions by list position, so the state shown
+  on reopen — and the values written back — corresponded to completely
+  different tilts. Exclusions are now mapped by matching each tomostar tilt's
+  angle to the corresponding `<Angles>` entry, in both reading and writing.
+
+---
+
 ## [1.3.0] - 2026-06-18
 
 ### Fixed

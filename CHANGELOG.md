@@ -23,6 +23,13 @@ All notable changes to the WarpTools Tilt Series Visualiser are documented here.
   was the source of the "excluded tilts disappear on reopen" problem, so the
   stack is no longer used for display at all.
 
+### Robustness
+- **`--frame_dir` tolerates being pointed at `average/`** — if you pass the
+  `average/` subdirectory itself instead of its parent, the tool now steps
+  back to the parent automatically so `average/`, `powerspectrum/` and the
+  per-frame XMLs are all still found (previously this produced a doubled path
+  like `average/average/...` and no images were shown).
+
 ### Migration
 - Batch mode: replace `--stack_dir $warp_ts` with nothing; ensure
   `--frame_dir $warp_fs` is present (it points at the dir containing

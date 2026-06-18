@@ -390,8 +390,14 @@ def resolve_average_paths(frame_dir, movies):
     <frame_dir>/average/. Each tomostar _wrpMovieName matches an average
     filename exactly. Missing files (e.g. tilts that failed motion correction)
     are returned as None so they can be shown as placeholders.
+
+    Robust to frame_dir pointing either at the frame-series dir (containing
+    average/) OR directly at the average/ dir itself.
     """
     avg_dir = os.path.join(frame_dir, 'average')
+    if not os.path.isdir(avg_dir):
+        # frame_dir may already BE the average directory
+        avg_dir = frame_dir
     paths = []
     for mv in movies:
         cand = os.path.join(avg_dir, mv)
@@ -708,6 +714,20 @@ class MainWindow(QMainWindow):
                  sigma=3.0, contrast_lo=2, contrast_hi=98):
         super().__init__()
         self.series_list = series_list
+        # Normalise frame_dir: if the user pointed it at the average/ subdir,
+        # step back to its parent so average/, powerspectrum/ and the per-frame
+        # XMLs are all found consistently.
+        if frame_dir:
+            fd = os.path.normpath(frame_dir)
+            if os.path.basename(fd) == 'average' and os.path.isdir(fd):
+                parent = os.path.dirname(fd)
+                # only step back if the parent looks like the frame-series dir
+                # (i.e. it actually contains the average/ dir we were given)
+                if os.path.isdir(os.path.join(parent, 'average')):
+                    print(f"  Note: --frame_dir pointed at average/; using "
+                          f"parent '{parent}' as frame dir")
+                    fd = parent
+            frame_dir = fd
         self.frame_dir   = frame_dir
         self.sigma       = sigma
         self.clo         = contrast_lo
